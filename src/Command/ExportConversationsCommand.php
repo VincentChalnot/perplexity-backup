@@ -33,20 +33,20 @@ class ExportConversationsCommand extends Command
             JSON_THROW_ON_ERROR
         );
         foreach ($conversationList as $item) {
-            $slug = $item['slug'];
-            $this->exportConversation($slug);
+            $uuid = $item['uuid'];
+            $this->exportConversation($uuid);
         }
 
         return Command::SUCCESS;
     }
 
-    private function exportConversation(string $slug): void
+    private function exportConversation(string $uuid): void
     {
-        $filePath = "{$this->kernelProjectDir}/var/data/conversations/{$slug}.json";
+        $filePath = "{$this->kernelProjectDir}/var/data/conversations/{$uuid}.json";
         if (file_exists($filePath)) {
             return;
         }
-        $url = "https://www.perplexity.ai/rest/thread/{$slug}?with_parent_info=true&with_schematized_response=true&version=2.18&source=default&limit=1000&offset=0&from_first=true&supported_block_use_cases=answer_modes&supported_block_use_cases=media_items&supported_block_use_cases=knowledge_cards&supported_block_use_cases=inline_entity_cards&supported_block_use_cases=place_widgets&supported_block_use_cases=finance_widgets&supported_block_use_cases=sports_widgets&supported_block_use_cases=shopping_widgets&supported_block_use_cases=jobs_widgets&supported_block_use_cases=search_result_widgets&supported_block_use_cases=clarification_responses&supported_block_use_cases=inline_images&supported_block_use_cases=inline_assets&supported_block_use_cases=inline_finance_widgets&supported_block_use_cases=placeholder_cards&supported_block_use_cases=diff_blocks&supported_block_use_cases=inline_knowledge_cards&supported_block_use_cases=entity_group_v2&supported_block_use_cases=refinement_filters&supported_block_use_cases=canvas_mode&supported_block_use_cases=maps_preview";
+        $url = "https://www.perplexity.ai/rest/thread/{$uuid}?with_parent_info=true&with_schematized_response=true&version=2.18&source=default&limit=1000&offset=0&from_first=true&supported_block_use_cases=answer_modes&supported_block_use_cases=media_items&supported_block_use_cases=knowledge_cards&supported_block_use_cases=inline_entity_cards&supported_block_use_cases=place_widgets&supported_block_use_cases=finance_widgets&supported_block_use_cases=sports_widgets&supported_block_use_cases=shopping_widgets&supported_block_use_cases=jobs_widgets&supported_block_use_cases=search_result_widgets&supported_block_use_cases=clarification_responses&supported_block_use_cases=inline_images&supported_block_use_cases=inline_assets&supported_block_use_cases=inline_finance_widgets&supported_block_use_cases=placeholder_cards&supported_block_use_cases=diff_blocks&supported_block_use_cases=inline_knowledge_cards&supported_block_use_cases=entity_group_v2&supported_block_use_cases=refinement_filters&supported_block_use_cases=canvas_mode&supported_block_use_cases=maps_preview";
         $headers = [
             'accept' => '*/*',
             'accept-language' => 'en-US,en-GB;q=0.9,en;q=0.8,fr-FR;q=0.7,fr;q=0.6,es;q=0.5',
@@ -65,7 +65,7 @@ class ExportConversationsCommand extends Command
         $response = $this->httpClient->request('GET', $url, $options);
         if ($response->getStatusCode() !== 200) {
             throw new \RuntimeException(
-                "Failed to fetch conversation {$slug}: HTTP {$response->getStatusCode()}\n{$response->getContent()}"
+                "Failed to fetch conversation {$uuid}: HTTP {$response->getStatusCode()}\n{$response->getContent()}"
             );
         }
         $responseData = $response->toArray();

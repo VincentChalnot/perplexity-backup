@@ -29,21 +29,33 @@ class CreateIndexCommand extends Command
         $conversationsJson = json_decode(file_get_contents($conversationsPath), true, 512, JSON_THROW_ON_ERROR);
 
         $indexContent = "# Conversations Index\n\n";
-        $indexContent .= "| Date | Title | Collection | Messages |\n";
-        $indexContent .= "|------|-------|------------|----------|\n";
 
+        $byDate = [];
         foreach ($conversationsJson as $conversation) {
             $date = (new \DateTime($conversation['last_query_datetime']))->format('Y-m-d');
-            $title = $conversation['title'];
-            $uuid = $conversation['uuid'];
-            $collectionTitle = $conversation['collection']['title'] ?? '-';
+            $byDate[$date][] = $conversation;
+        }
 
-            $messageCount = $this->countMessages($conversationsDir, $uuid);
+        krsort($byDate);
 
-            $escapedTitle = str_replace('|', '\\|', $title);
-            $escapedCollection = str_replace('|', '\\|', $collectionTitle);
+        foreach ($byDate as $date => $conversations) {
+            $indexContent .= "## {$date}\n\n";
+            foreach ($conversations as $conversation) {
+                $title = $conversation['title'];
+                $uuid = $conversation['uuid'];
+                $collectionTitle = $conversation['collection']['title'] ?? '';
+                $messageCount = $this->countMessages($conversationsDir, $uuid);
 
-            $indexContent .= "| {$date} | [{$escapedTitle}](conversations/{$uuid}.md) | {$escapedCollection} | {$messageCount} |\n";
+                $displayTitle = mb_strimwidth($title, 0, 250, '...');
+                $displayTitle = str_replace(['[', ']', '(', ')', "\n", '`', '<', '>'], ['\[', '\]', '\(', '\)', ' ', '', '\<', '\>'], $displayTitle);
+
+                $indexContent .= "- [{$displayTitle}](conversations/{$uuid}.md)";
+                if ($collectionTitle) {
+                    $indexContent .= "  _{$collectionTitle}_";
+                }
+                $indexContent .= "  ({$messageCount} messages)\n";
+            }
+            $indexContent .= "\n";
         }
 
         file_put_contents("{$this->kernelProjectDir}/var/data/00-INDEX.md", $indexContent);

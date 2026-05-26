@@ -49,10 +49,23 @@ bin/console app:convert-conversations
 
 Converts each JSON file to Markdown format in `var/data/conversations/`. Creates a `.md` file alongside each `.json` file.
 
+### 4. Create Index
+
+```bash
+bin/console app:create-index
+```
+
+Generates `var/data/00-INDEX.md` with a searchable index of all conversations. The file is prefixed with `00-` to appear at the top of directory listings. Each entry shows:
+- Date (YYYY-MM-DD)
+- Title (as a link to the Markdown file)
+- Collection name (if any)
+- Message count
+
 ## Output Structure
 
 ```
 var/data/
+├── 00-INDEX.md                      # Index of all conversations
 ├── conversations.json              # List of all conversations
 └── conversations/
     ├── {uuid}.json                 # Individual conversation JSON

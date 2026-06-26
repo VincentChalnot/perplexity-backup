@@ -4,6 +4,7 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    env(COOKIE_PATH): '%kernel.project_dir%/cookie.txt'
 
 services:
     # default configuration for services in *this* file
@@ -11,7 +12,8 @@ services:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
-            $cookie: '%env(PERPLEXITY_COOKIE)%'
+            $cookie: '%env(trim:file:COOKIE_PATH)%'
+            $conversationsPath: '%kernel.project_dir%/var/data'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

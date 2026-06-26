@@ -4,21 +4,24 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Client\PerplexityClient;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-#[AsCommand(name: 'app:export-individual-conversations', description: 'Hello PhpStorm')]
+#[AsCommand(name: 'app:export-individual-conversations', description: 'For each conversation in var/data/conversations.json, export the full json conversation')]
 class ExportConversationsCommand extends Command
 {
+    private const array PERPLEXITY_DOMAINS = [
+        'ppl-ai-file-upload.s3.amazonaws.com',
+        'ppl-ai-code-interpreter-files.s3.amazonaws.com',
+        'user-gen-media-assets.s3.amazonaws.com',
+    ];
+
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        #[Autowire('%kernel.project_dir%')]
-        private readonly string $kernelProjectDir,
-        private readonly string $cookie,
+        private readonly PerplexityClient $perplexityClient,
+        private readonly string $conversationsPath,
         ?string $name = null,
     ) {
         parent::__construct($name);
@@ -27,49 +30,93 @@ class ExportConversationsCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $conversationList = json_decode(
-            file_get_contents("{$this->kernelProjectDir}/var/data/conversations.json"),
+            file_get_contents("{$this->conversationsPath}/conversations.json"),
             true,
             512,
             JSON_THROW_ON_ERROR
         );
         foreach ($conversationList as $item) {
             $uuid = $item['uuid'];
-            $this->exportConversation($uuid);
+            $title = strtok(mb_substr($item['title'] ?? 'Untitled', 0, 100), "\n");
+            $output->writeln("Exporting conversation {$uuid}: {$title}");
+            $this->exportConversation($uuid, $output);
+            usleep(random_int(500, 5000));
         }
 
         return Command::SUCCESS;
     }
 
-    private function exportConversation(string $uuid): void
+    private function exportConversation(string $uuid, OutputInterface $output): void
     {
-        $filePath = "{$this->kernelProjectDir}/var/data/conversations/{$uuid}.json";
+        $basePath = "{$this->conversationsPath}/conversations/{$uuid}";
+        if (!is_dir($basePath) && !mkdir($basePath, 0777, true) && !is_dir($basePath)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $basePath));
+        }
+        $filePath = "{$basePath}/conversation.json";
         if (file_exists($filePath)) {
             return;
         }
-        $url = "https://www.perplexity.ai/rest/thread/{$uuid}?with_parent_info=true&with_schematized_response=true&version=2.18&source=default&limit=1000&offset=0&from_first=true&supported_block_use_cases=answer_modes&supported_block_use_cases=media_items&supported_block_use_cases=knowledge_cards&supported_block_use_cases=inline_entity_cards&supported_block_use_cases=place_widgets&supported_block_use_cases=finance_widgets&supported_block_use_cases=sports_widgets&supported_block_use_cases=shopping_widgets&supported_block_use_cases=jobs_widgets&supported_block_use_cases=search_result_widgets&supported_block_use_cases=clarification_responses&supported_block_use_cases=inline_images&supported_block_use_cases=inline_assets&supported_block_use_cases=inline_finance_widgets&supported_block_use_cases=placeholder_cards&supported_block_use_cases=diff_blocks&supported_block_use_cases=inline_knowledge_cards&supported_block_use_cases=entity_group_v2&supported_block_use_cases=refinement_filters&supported_block_use_cases=canvas_mode&supported_block_use_cases=maps_preview";
-        $headers = [
-            'accept' => '*/*',
-            'accept-language' => 'en-US,en-GB;q=0.9,en;q=0.8,fr-FR;q=0.7,fr;q=0.6,es;q=0.5',
-            'content-type' => 'application/json',
-            'user-agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
-            'x-app-apiclient' => 'default',
-            'x-app-apiversion' => '2.18',
-            'x-perplexity-request-endpoint' => $url,
-            'x-perplexity-request-reason' => 'threads-body',
-            'x-perplexity-request-try-number' => '1',
-            'Cookie' => $this->cookie,
-        ];
-        $options = [
-            'headers' => $headers,
-        ];
-        $response = $this->httpClient->request('GET', $url, $options);
-        if ($response->getStatusCode() !== 200) {
-            throw new \RuntimeException(
-                "Failed to fetch conversation {$uuid}: HTTP {$response->getStatusCode()}\n{$response->getContent()}"
-            );
-        }
-        $responseData = $response->toArray();
+        $responseData = $this->perplexityClient->getConversation($uuid);
+        $this->fetchMedias($responseData, $output);
+
         file_put_contents($filePath, json_encode($responseData, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
-        usleep(random_int(500, 5000));
+    }
+
+    private function fetchMedias(array $responseData, OutputInterface $output): void
+    {
+        $medias = [];
+        // Browse the entire object and find all URLs:
+        array_walk_recursive($responseData, function ($value) use (&$medias) {
+            if (!is_string($value)) {
+                return;
+            }
+            if (!str_contains($value, 'AWSAccessKeyId')) {
+                return;
+            }
+            $finalPath = $this->parsePerplexityUrlPath($value);
+            if (null === $finalPath) {
+                return;
+            }
+
+            $medias[$finalPath] = $value;
+        });
+
+        foreach ($medias as $finalPath => $fullUrl) {
+            $output->writeln(" - Fetching media: {$fullUrl}");
+
+
+            $filePath = "{$this->conversationsPath}/medias/{$finalPath}";
+            if (file_exists($filePath)) {
+                continue;
+            }
+            $dir = dirname($filePath);
+            if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
+                throw new \RuntimeException(sprintf('Directory "%s" was not created', $dir));
+            }
+            try {
+                $source = fopen($fullUrl, 'rb');
+            } catch (\Exception $e) {
+                $output->writeln("<error>Unable to open URL: {$fullUrl}</error>");
+                $output->writeln("<error>{$e}</error>");
+                continue;
+            }
+            $dest = fopen($filePath, 'wb');
+
+            stream_copy_to_stream($source, $dest);
+
+            fclose($source);
+            fclose($dest);
+        }
+    }
+
+    private function parsePerplexityUrlPath(string $url): ?string
+    {
+        $urlData = parse_url($url);
+        $host = $urlData['host'] ?? null;
+        if (!in_array($host, self::PERPLEXITY_DOMAINS, true)) {
+            return null;
+        }
+
+        return $urlData['path'] ?? null;
     }
 }

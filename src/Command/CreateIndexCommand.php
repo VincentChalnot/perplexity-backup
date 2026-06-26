@@ -8,14 +8,12 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
-#[AsCommand(name: 'app:create-index', description: 'Create index file from conversations')]
+#[AsCommand(name: 'app:create-index', description: 'Create markdown index file from conversations')]
 class CreateIndexCommand extends Command
 {
     public function __construct(
-        #[Autowire('%kernel.project_dir%')]
-        private readonly string $kernelProjectDir,
+        private readonly string $conversationsPath,
         ?string $name = null,
     ) {
         parent::__construct($name);
@@ -23,8 +21,7 @@ class CreateIndexCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $conversationsPath = "{$this->kernelProjectDir}/var/data/conversations.json";
-        $conversationsDir = "{$this->kernelProjectDir}/var/data/conversations";
+        $conversationsPath = "{$this->conversationsPath}/conversations.json";
 
         $conversationsJson = json_decode(file_get_contents($conversationsPath), true, 512, JSON_THROW_ON_ERROR);
 
@@ -32,7 +29,7 @@ class CreateIndexCommand extends Command
 
         $byDate = [];
         foreach ($conversationsJson as $conversation) {
-            $date = (new \DateTime($conversation['last_query_datetime']))->format('Y-m-d');
+            $date = new \DateTime($conversation['last_query_datetime'])->format('Y-m-d');
             $byDate[$date][] = $conversation;
         }
 
@@ -44,12 +41,12 @@ class CreateIndexCommand extends Command
                 $title = $conversation['title'];
                 $uuid = $conversation['uuid'];
                 $collectionTitle = $conversation['collection']['title'] ?? '';
-                $messageCount = $this->countMessages($conversationsDir, $uuid);
+                $messageCount = $this->countMessages($uuid);
 
                 $displayTitle = mb_strimwidth($title, 0, 250, '...');
                 $displayTitle = str_replace(['[', ']', '(', ')', "\n", '`', '<', '>'], ['\[', '\]', '\(', '\)', ' ', '', '\<', '\>'], $displayTitle);
 
-                $indexContent .= "- [{$displayTitle}](conversations/{$uuid}.md)";
+                $indexContent .= "- [{$displayTitle}](conversations/{$uuid}/conversation.md)";
                 if ($collectionTitle) {
                     $indexContent .= "  _{$collectionTitle}_";
                 }
@@ -58,16 +55,16 @@ class CreateIndexCommand extends Command
             $indexContent .= "\n";
         }
 
-        file_put_contents("{$this->kernelProjectDir}/var/data/00-INDEX.md", $indexContent);
+        file_put_contents("{$this->conversationsPath}/conversations.md", $indexContent);
 
         $output->writeln('Index created successfully!');
 
         return Command::SUCCESS;
     }
 
-    private function countMessages(string $conversationsDir, string $uuid): int
+    private function countMessages(string $uuid): int
     {
-        $filePath = "{$conversationsDir}/{$uuid}.json";
+        $filePath = "{{$this->conversationsPath}}/conversations/{$uuid}/conversation.json";
         if (!file_exists($filePath)) {
             return 0;
         }

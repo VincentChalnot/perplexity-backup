@@ -8,17 +8,13 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Finder\Finder;
-use Symfony\Component\HttpKernel\KernelInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-#[AsCommand(name: 'app:convert-conversations', description: 'Convert json conversation files to markdown')]
+#[AsCommand(name: 'app:conversations:convert', description: 'Convert json conversation files to markdown')]
 class ConvertConversationsCommand extends Command
 {
     public function __construct(
-        #[Autowire('%kernel.project_dir%')]
-        private readonly string $kernelProjectDir,
+        private readonly string $conversationsPath,
         ?string $name = null,
     ) {
         parent::__construct($name);
@@ -26,13 +22,12 @@ class ConvertConversationsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $path = "{$this->kernelProjectDir}/var/data/conversations";
         $finder = new Finder();
-        $finder->in($path)->sortByName()->name('*.json')->files();
+        $finder->in($this->conversationsPath)->sortByName()->name('*.json')->files();
         foreach ($finder as $i) {
             $array = json_decode($i->getContents(), true, 512, JSON_THROW_ON_ERROR);
             $text = $this->convertConversation($array);
-            file_put_contents("{$path}/{$i->getBasename('.json')}.md", $text);
+            file_put_contents("{$this->conversationsPath}/{$i->getBasename('.json')}.md", $text);
         }
 
         return Command::SUCCESS;

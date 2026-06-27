@@ -9,7 +9,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-#[AsCommand(name: 'app:create-index', description: 'Create markdown index file from conversations')]
+#[AsCommand(name: 'app:conversation:create-index', description: 'Create markdown index file from conversations')]
 class CreateIndexCommand extends Command
 {
     public function __construct(

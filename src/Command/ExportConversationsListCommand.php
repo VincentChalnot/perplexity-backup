@@ -9,7 +9,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-#[AsCommand(name: "app:export-conversations-list", description: "Export all conversations to JSON files")]
+#[AsCommand(name: "app:conversations:export-list", description: "Export the full conversations list to a JSON file")]
 class ExportConversationsListCommand extends Command
 {
     public function __construct(

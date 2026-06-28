@@ -1,8 +1,15 @@
 # Perplexity Backup
 
-A Symfony console application to export and backup your Perplexity conversations.
+A Symfony console application to export and back up your Perplexity AI conversations as JSON, downloaded media, and
+rendered Markdown.
 
-> **Note:** This is a hack in early development but it works.
+> **Note:** Early-stage hack, but it works.
+
+## Requirements
+
+- PHP 8.4+
+- Composer
+- Symfony 7.3 (installed via Composer)
 
 ## Setup
 
@@ -11,15 +18,17 @@ A Symfony console application to export and backup your Perplexity conversations
    composer install
    ```
 
-2. Add your session cookie to `.env.local`:
-   ```
-   PERPLEXITY_COOKIE=your_session_cookie_here
-   ```
+2. Provide your Perplexity session cookie via either:
+    - `.env.local`:
+      ```
+      PERPLEXITY_COOKIE=your_session_cookie_here
+      ```
+    - or a file at `cookie.txt` in the project root (path overridable with `COOKIE_PATH`).
 
-To get your session cookie:
-- Open Perplexity in your browser
-- Open Developer Tools (F12) → Application → Cookies → https://www.perplexity.ai
-- Copy the value of the `ppl_session` cookie
+   To get your session cookie:
+    - Open Perplexity in your browser.
+    - Open Developer Tools (F12) → Application → Cookies → `https://www.perplexity.ai`.
+    - Copy the value of the `ppl_session` cookie.
 
 ## Usage
 
@@ -28,51 +37,66 @@ Run the commands in sequence:
 ### 1. Export conversations list
 
 ```bash
-bin/console app:export-conversations-list
+bin/console app:conversations:export-list
 ```
 
-Exports all conversations to `var/data/conversations.json`.
+Writes the full conversation list to `var/data/conversations.json`.
 
-### 2. Export individual conversations
+### 2. Export individual conversations and media
 
 ```bash
-bin/console app:export-individual-conversations
+bin/console app:conversations:export-all
 ```
 
-Fetches each conversation and saves it as a JSON file in `var/data/conversations/`. Files are named by UUID. Existing conversations are skipped.
+For each conversation in the list, downloads the full JSON plus any associated media (generated images, attachments)
+into `var/data/conversations/{uuid}/` and `var/data/medias/`. Existing files are skipped.
+
+Single-thread variant:
+
+```bash
+bin/console app:conversations:export-single {uuid}
+```
 
 ### 3. Convert to Markdown
 
 ```bash
-bin/console app:convert-conversations
+bin/console app:conversations:convert
 ```
 
-Converts each JSON file to Markdown format in `var/data/conversations/`. Creates a `.md` file alongside each `.json` file.
+Renders each `conversation.json` into `conversation.md` (with a YAML frontmatter + metadata block) and a
+`conversation_meta.json` sidecar inside the same `{uuid}` directory.
 
-### 4. Create Index
+Single-thread variant:
 
 ```bash
-bin/console app:create-index
+bin/console app:conversation:convert {uuid}
 ```
 
-Generates `var/data/00-INDEX.md` with a searchable index of all conversations. The file is prefixed with `00-` to appear at the top of directory listings. Each entry shows:
-- Date (YYYY-MM-DD)
-- Title (as a link to the Markdown file)
-- Collection name (if any)
-- Message count
+### 4. Create index
 
-## Output Structure
+```bash
+bin/console app:conversation:create-index
+```
+
+Generates `var/data/conversations.md`, a Markdown index grouped by date. Each entry links to the converted conversation
+and shows title, optional collection, and message count.
+
+## Output structure
 
 ```
 var/data/
-├── 00-INDEX.md                      # Index of all conversations
 ├── conversations.json              # List of all conversations
-└── conversations/
-    ├── {uuid}.json                 # Individual conversation JSON
-    └── {uuid}.md                   # Converted Markdown
+├── conversations.md                # Generated index
+├── conversations/
+│   └── {uuid}/
+│       ├── conversation.json       # Raw API response
+│       ├── conversation.md         # Rendered Markdown
+│       └── conversation_meta.json  # Metadata sidecar (images, attachments)
+└── medias/
+    ├── index.json                  # Global media registry / dedup
+    └── ...                         # Downloaded images and attachments
 ```
 
-## Requirements
+## License
 
-- PHP 8.4+
-- Symfony 7.3
+GPL-3.0. See [LICENSE](LICENSE).

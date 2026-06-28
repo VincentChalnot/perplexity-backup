@@ -19,6 +19,14 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+        exclude:
+            - '../src/Processor/BlockProcessorInterface.php'
+            - '../src/Processor/ConvertContext.php'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    App\Helper\ConvertCommandHelper:
+        arguments:
+            $processors: !tagged_iterator app.block_processor
+
+    _instanceof:
+        App\Processor\BlockProcessorInterface:
+            tags: ['app.block_processor']

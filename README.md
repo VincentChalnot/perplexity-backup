@@ -18,12 +18,8 @@ rendered Markdown.
    composer install
    ```
 
-2. Provide your Perplexity session cookie via either:
-    - `.env.local`:
-      ```
-      PERPLEXITY_COOKIE=your_session_cookie_here
-      ```
-    - or a file at `cookie.txt` in the project root (path overridable with `COOKIE_PATH`).
+2. Provide your Perplexity session cookie: create a `cookie.txt` file in the project root containing the cookie value.
+   Path overridable with `COOKIE_PATH` env var.
 
    To get your session cookie:
     - Open Perplexity in your browser.
@@ -42,19 +38,26 @@ bin/console app:conversations:export-list
 
 Writes the full conversation list to `var/data/conversations.json`.
 
-### 2. Export individual conversations and media
+### 2. Export conversations and media
 
 ```bash
-bin/console app:conversations:export-all
+bin/console app:conversations:export
 ```
 
 For each conversation in the list, downloads the full JSON plus any associated media (generated images, attachments)
-into `var/data/conversations/{uuid}/` and `var/data/medias/`. Existing files are skipped.
+into `var/data/conversations/{uuid}/` and `var/data/medias/`. By default, only conversations whose `updated_at`
+changed since last export are re-fetched.
+
+Force a full re-export of everything:
+
+```bash
+bin/console app:conversations:export --full
+```
 
 Single-thread variant:
 
 ```bash
-bin/console app:conversations:export-single {uuid}
+bin/console app:conversations:export {uuid}
 ```
 
 ### 3. Convert to Markdown
@@ -69,7 +72,7 @@ Renders each `conversation.json` into `conversation.md` (with a YAML frontmatter
 Single-thread variant:
 
 ```bash
-bin/console app:conversation:convert {uuid}
+bin/console app:conversations:convert {uuid}
 ```
 
 ### 4. Create index

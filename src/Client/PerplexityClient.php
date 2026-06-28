@@ -31,11 +31,7 @@ readonly class PerplexityClient
         ];
 
         $response = $this->httpClient->request('POST', $url, $options);
-        if ($response->getStatusCode() !== 200) {
-            throw new \RuntimeException(
-                "Failed to fetch conversations: HTTP {$response->getStatusCode()}\n{$response->getContent()}"
-            );
-        }
+        $this->assertAuthenticated($response, 'conversations list');
 
         return $response->toArray();
     }
@@ -47,13 +43,36 @@ readonly class PerplexityClient
             'headers' => $this->getHeaders($url),
         ];
         $response = $this->httpClient->request('GET', $url, $options);
-        if ($response->getStatusCode() !== 200) {
-            throw new \RuntimeException(
-                "Failed to fetch conversation {$uuid}: HTTP {$response->getStatusCode()}\n{$response->getContent()}"
-            );
-        }
+        $this->assertAuthenticated($response, "conversation {$uuid}");
 
         return $response->toArray();
+    }
+
+    /**
+     * @throws \RuntimeException on 401, 403, or redirect (session expired / invalid cookie)
+     */
+    private function assertAuthenticated($response, string $context): void
+    {
+        $code = $response->getStatusCode();
+        if ($code === 401 || $code === 403) {
+            throw new \RuntimeException(
+                "Session expired or invalid cookie (HTTP {$code}) while fetching {$context}. "
+                . "Update cookie.txt with a fresh ppl_session cookie from your browser."
+            );
+        }
+        // Symfony HttpClient follows redirects by default; a 3xx here means
+        // the server redirected to a login page, which also signals a stale cookie.
+        if ($code >= 300 && $code < 400) {
+            throw new \RuntimeException(
+                "Unexpected redirect (HTTP {$code}) while fetching {$context}. "
+                . "This usually means your session cookie has expired. Update cookie.txt."
+            );
+        }
+        if ($code !== 200) {
+            throw new \RuntimeException(
+                "Failed to fetch {$context}: HTTP {$code}\n{$response->getContent()}"
+            );
+        }
     }
 
     private function getHeaders(string $url): array

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Helper;
 
 use App\Client\PerplexityClient;
+use App\Service\BackupPaths;
 use Symfony\Component\Console\Output\OutputInterface;
 
 readonly class ExportCommandHelper
@@ -16,20 +17,17 @@ readonly class ExportCommandHelper
 
     public function __construct(
         private PerplexityClient $perplexityClient,
-        private string $conversationsPath,
+        private BackupPaths $paths,
     ) {
     }
 
     public function exportConversation(string $uuid, OutputInterface $output): void
     {
-        $basePath = "{$this->conversationsPath}/conversations/{$uuid}";
+        $basePath = $this->paths->threadDir($uuid);
         if (!is_dir($basePath) && !mkdir($basePath, 0777, true) && !is_dir($basePath)) {
             throw new \RuntimeException(sprintf('Directory "%s" was not created', $basePath));
         }
-        $filePath = "{$basePath}/conversation.json";
-        if (file_exists($filePath)) {
-            return;
-        }
+        $filePath = $this->paths->threadJson($uuid);
         $responseData = $this->perplexityClient->getConversation($uuid);
         $this->fetchMedias($responseData, $output);
 
@@ -58,7 +56,7 @@ readonly class ExportCommandHelper
         foreach ($medias as $finalPath => $fullUrl) {
             $output->writeln(" - Fetching media: {$fullUrl}");
 
-            $filePath = "{$this->conversationsPath}/medias/{$finalPath}";
+            $filePath = $this->paths->mediaFile($finalPath);
             if (file_exists($filePath)) {
                 continue;
             }

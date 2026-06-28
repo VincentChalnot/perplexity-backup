@@ -1,0 +1,30 @@
+{
+  "uuid": "test-thread-002",
+  "title": "Best PHP frameworks",
+  "created_at": "2025-06-01T14:00:00Z",
+  "model": "pplx-70b-online",
+  "entries": [
+    {
+      "uuid": "entry-002",
+      "backend_uuid": "test-thread-002",
+      "thread_title": "Best PHP frameworks",
+      "entry_created_datetime": "2025-06-01T14:00:00Z",
+      "query_str": "Best PHP frameworks",
+      "query_language": "en",
+      "updated_datetime": "2025-06-01T14:00:00Z",
+      "display_model": "Sonnet",
+      "search_mode": "pro",
+      "sources": {
+        "sources": ["web", "scholar"]
+      },
+      "blocks": [
+        {
+          "intended_usage": "ask_text",
+          "markdown_block": {
+            "answer": "The most popular PHP frameworks are Laravel, Symfony, and CodeIgniter."
+          }
+        }
+      ]
+    }
+  ]
+}

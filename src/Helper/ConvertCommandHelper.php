@@ -5,6 +5,7 @@ namespace App\Helper;
 
 use App\Processor\BlockProcessorInterface;
 use App\Processor\ConvertContext;
+use Symfony\Component\Yaml\Yaml;
 
 class ConvertCommandHelper
 {
@@ -219,7 +220,7 @@ class ConvertCommandHelper
             $frontmatter['source_types'] = $allSourceTypes;
         }
         $md .= "---\n";
-        $md .= $this->dumpYamlBlock($frontmatter);
+        $md .= Yaml::dump($frontmatter, 4, 2);
         $md .= "---\n\n";
 
         // ── Per-entry blocks ──────────────────────────────────────
@@ -238,7 +239,7 @@ class ConvertCommandHelper
             }
             if (!empty($meta1)) {
                 $md .= "```yaml\n";
-                $md .= $this->dumpYamlBlock($meta1);
+                $md .= Yaml::dump($meta1, 4, 2);
                 $md .= "```\n\n";
             }
 
@@ -277,7 +278,7 @@ class ConvertCommandHelper
             }
             if (!empty($meta2)) {
                 $md .= "```yaml\n";
-                $md .= $this->dumpYamlBlock($meta2);
+                $md .= Yaml::dump($meta2, 4, 2);
                 $md .= "```\n\n";
             }
 
@@ -455,122 +456,7 @@ class ConvertCommandHelper
         return $md;
     }
 
-    // ─── YAML helpers ─────────────────────────────────────────────
-
-    /**
-     * Dump a key-value array as a YAML block (for code blocks).
-     * Handles nested arrays/objects recursively.
-     */
-    private function dumpYamlBlock(array $data, int $indent = 0): string
-    {
-        $lines = [];
-        $pad = str_repeat(' ', $indent);
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                if ($this->isSequentialArray($value)) {
-                    if ($this->isScalarArray($value)) {
-                        // Simple scalar list: inline
-                        $lines[] = "{$pad}{$key}: [" . implode(', ', array_map([$this, 'yamlScalar'], $value)) . "]";
-                    } else {
-                        // Array of objects (like steps)
-                        $lines[] = "{$pad}{$key}:";
-                        foreach ($value as $item) {
-                            if (is_array($item)) {
-                                $lines[] = $this->dumpYamlListItem($item, $indent + 2);
-                            } else {
-                                $lines[] = "{$pad}  - " . $this->yamlScalar($item);
-                            }
-                        }
-                    }
-                } else {
-                    // Associative array
-                    $lines[] = "{$pad}{$key}:";
-                    $lines[] = $this->dumpYamlBlock($value, $indent + 2);
-                }
-            } else {
-                $lines[] = "{$pad}{$key}: " . $this->yamlScalar($value);
-            }
-        }
-        return implode("\n", $lines) . "\n";
-    }
-
-    /**
-     * Dump a single list item (object) with `- ` prefix on first key.
-     */
-    private function dumpYamlListItem(array $item, int $indent): string
-    {
-        $lines = [];
-        $pad = str_repeat(' ', $indent);
-        $first = true;
-        foreach ($item as $k => $v) {
-            // Skip empty arrays in list items
-            if (is_array($v) && empty($v)) {
-                continue;
-            }
-            $prefix = $first ? "{$pad}- {$k}: " : "{$pad}  {$k}: ";
-            $first = false;
-            if (is_array($v)) {
-                if ($this->isSequentialArray($v)) {
-                    if ($this->isScalarArray($v)) {
-                        $lines[] = $prefix . "[" . implode(', ', array_map([$this, 'yamlScalar'], $v)) . "]";
-                    } else {
-                        $lines[] = rtrim($prefix, ' ');
-                        foreach ($v as $sub) {
-                            if (is_array($sub)) {
-                                $lines[] = $this->dumpYamlListItem($sub, $indent + 4);
-                            } else {
-                                $lines[] = "{$pad}    - " . $this->yamlScalar($sub);
-                            }
-                        }
-                    }
-                } else {
-                    // Associative array (map) — e.g. sources: {1: {...}}
-                    $lines[] = rtrim($prefix, ' ');
-                    $lines[] = $this->dumpYamlBlock($v, $indent + 4);
-                }
-            } else {
-                $lines[] = $prefix . $this->yamlScalar($v);
-            }
-        }
-        return implode("\n", $lines);
-    }
-
-    /**
-     * Check if array is sequential (0-indexed).
-     */
-    private function isSequentialArray(array $arr): bool
-    {
-        return array_keys($arr) === range(0, count($arr) - 1);
-    }
-
-    /**
-     * Check if all values in array are scalars.
-     */
-    private function isScalarArray(array $arr): bool
-    {
-        foreach ($arr as $v) {
-            if (is_array($v)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private function yamlScalar(mixed $value): string
-    {
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-        if (is_numeric($value)) {
-            return (string) $value;
-        }
-        $str = (string) $value;
-        // Quote if contains special chars
-        if ($str === '' || preg_match('/[:{}\[\],&*?|>!%@`#\'"\\\\]/', $str) || in_array($str, ['true', 'false', 'null', 'yes', 'no'])) {
-            return "'" . str_replace("'", "''", $str) . "'";
-        }
-        return $str;
-    }
+    // ─── Number formatting ──────────────────────────────────────
 
     private function formatLargeNumber(float|int $num): string
     {

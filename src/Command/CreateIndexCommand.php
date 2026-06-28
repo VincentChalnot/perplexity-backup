@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Service\BackupPaths;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-#[AsCommand(name: 'app:conversation:create-index', description: 'Create markdown index file from conversations')]
+#[AsCommand(name: 'app:conversations:create-index', description: 'Create markdown index file from conversations')]
 class CreateIndexCommand extends Command
 {
     public function __construct(
-        private readonly string $conversationsPath,
+        private readonly BackupPaths $paths,
         ?string $name = null,
     ) {
         parent::__construct($name);
@@ -21,9 +22,7 @@ class CreateIndexCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $conversationsPath = "{$this->conversationsPath}/conversations.json";
-
-        $conversationsJson = json_decode(file_get_contents($conversationsPath), true, 512, JSON_THROW_ON_ERROR);
+        $conversationsJson = json_decode(file_get_contents($this->paths->conversationsList()), true, 512, JSON_THROW_ON_ERROR);
 
         $indexContent = "# Conversations Index\n\n";
 
@@ -55,7 +54,7 @@ class CreateIndexCommand extends Command
             $indexContent .= "\n";
         }
 
-        file_put_contents("{$this->conversationsPath}/conversations.md", $indexContent);
+        file_put_contents($this->paths->conversationsIndex(), $indexContent);
 
         $output->writeln('Index created successfully!');
 
@@ -64,7 +63,7 @@ class CreateIndexCommand extends Command
 
     private function countMessages(string $uuid): int
     {
-        $filePath = "{{$this->conversationsPath}}/conversations/{$uuid}/conversation.json";
+        $filePath = $this->paths->threadJson($uuid);
         if (!file_exists($filePath)) {
             return 0;
         }

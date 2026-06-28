@@ -1,0 +1,30 @@
+{
+  "uuid": "test-thread-001",
+  "title": "What is PHP?",
+  "created_at": "2025-01-15T10:30:00Z",
+  "model": "pplx-70b-online",
+  "entries": [
+    {
+      "uuid": "entry-001",
+      "backend_uuid": "test-thread-001",
+      "thread_title": "What is PHP?",
+      "entry_created_datetime": "2025-01-15T10:30:00Z",
+      "query_str": "What is PHP?",
+      "query_language": "en",
+      "updated_datetime": "2025-01-15T10:30:00Z",
+      "display_model": "Sonnet",
+      "search_mode": "pro",
+      "sources": {
+        "sources": []
+      },
+      "blocks": [
+        {
+          "intended_usage": "ask_text",
+          "markdown_block": {
+            "answer": "PHP is a general-purpose scripting language geared toward web development."
+          }
+        }
+      ]
+    }
+  ]
+}

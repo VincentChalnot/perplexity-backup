@@ -1,0 +1,7 @@
+parameters:
+    level: 5
+    paths:
+        - src
+    excludePaths:
+        - src/Processor/BlockProcessorInterface.php
+        - src/Processor/ConvertContext.php

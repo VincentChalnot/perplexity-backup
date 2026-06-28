@@ -8,11 +8,12 @@ as Markdown with YAML metadata.
 ```bash
 composer install
 bin/console app:conversations:export-list    # fetch list → var/data/conversations.json
-bin/console app:conversations:export-all     # fetch each thread + media → var/data/conversations/{uuid}/
+bin/console app:conversations:export         # incremental: only re-fetch threads where remote updated_at changed
+bin/console app:conversations:export --full  # force re-export of all conversations
+bin/console app:conversations:export {uuid}  # fetch one thread
 bin/console app:conversations:convert        # JSON → conversation.md
+bin/console app:conversations:convert {uuid} # convert one thread
 bin/console app:conversation:create-index    # build top-level index
-bin/console app:conversations:export-single {uuid}
-bin/console app:conversation:convert {uuid}
 ```
 
 Auth: cookie file at `cookie.txt` (path via `COOKIE_PATH` env). `.env.local` may hold `PERPLEXITY_COOKIE`.
@@ -27,7 +28,7 @@ bin/console lint:yaml config/
 php -l <file>
 ```
 
-Smoke test: run `app:conversation:convert {uuid}` on an already-exported thread and diff the resulting
+Smoke test: run `app:conversations:convert {uuid}` on an already-exported thread and diff the resulting
 `conversation.md`.
 
 ## Architecture
@@ -63,8 +64,7 @@ Markdown output spec: see [docs/agents/output-format.md](docs/agents/output-form
 - `var/data/` holds the user's irreplaceable backup. Never delete, truncate, or rewrite in bulk. New code that writes
   there must be idempotent and skip-if-exists.
 - `cookie.txt` and `.env.local` contain session credentials. Never log, echo, or commit.
-- `ConvertCommandHelper` contains a hand-rolled YAML dumper (not `symfony/yaml`). When touching it: check
-  `isSequentialArray` **before** `isScalarArray`, else associative source maps render as flat lists.
+- `ConvertCommandHelper` uses `Symfony\Component\Yaml\Yaml::dump()` with inline depth 4 for code-block YAML.
 - `ExportCommandHelper::fetchMedias()` walks the entire response recursively and downloads any signed S3 URL it sees.
   Changing the URL detection heuristic risks missing media or hammering S3.
 

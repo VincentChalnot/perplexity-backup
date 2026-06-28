@@ -11,11 +11,9 @@
 
 2. **Command naming inconsistent.** Mix of singular/plural and verb position:
     - `app:conversations:export-list`
-    - `app:conversations:export-all`
-    - `app:conversations:export-single`
+    - `app:conversations:export`
     - `app:conversations:convert`
-    - `app:conversation:convert` (singular!)
-    - `app:conversation:create-index` (singular!)
+    - `app:conversations:create-index`
 
    Pick one scheme. Suggest: `app:export:list`, `app:export:all`, `app:export:one {uuid}`, `app:convert:all`,
    `app:convert:one {uuid}`, `app:index`.
@@ -38,7 +36,7 @@
    corpus, or c) both? README implies (c) but the JSON, MD, and media live tangled together. Document the intent so
    users know what to grep/sync/restore.
 
-7. **No incremental mode.** `export-all` re-walks the full list every run. Skips existing files, but still hits the API
+7. **No incremental mode.** `export` re-walks the full list every run. Skips existing files, but still hits the API
    for the listing and iterates everything. No "only new since last run" flag. Users with thousands of threads will
    notice.
 
@@ -109,7 +107,7 @@
 24. **Add a `Makefile` or `composer` scripts:**
     ```json
     "scripts": {
-      "backup": ["@export-list", "@export-all", "@convert", "@index"],
+      "backup": ["@export-list", "@export", "@convert", "@index"],
       "export-list": "bin/console app:conversations:export-list",
       ...
     }

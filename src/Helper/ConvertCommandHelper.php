@@ -9,6 +9,9 @@ use Symfony\Component\Yaml\Yaml;
 
 class ConvertCommandHelper
 {
+    private const int YAML_INLINE = 8;
+    private const int YAML_INDENT = 2;
+
     private const array KEEP_DOMAINS = [
         'ppl-ai-file-upload.s3.amazonaws.com',
         'ppl-ai-code-interpreter-files.s3.amazonaws.com',
@@ -220,7 +223,7 @@ class ConvertCommandHelper
             $frontmatter['source_types'] = $allSourceTypes;
         }
         $md .= "---\n";
-        $md .= Yaml::dump($frontmatter, 4, 2);
+        $md .= Yaml::dump($frontmatter, self::YAML_INLINE, self::YAML_INDENT);
         $md .= "---\n\n";
 
         // ── Per-entry blocks ──────────────────────────────────────
@@ -239,7 +242,7 @@ class ConvertCommandHelper
             }
             if (!empty($meta1)) {
                 $md .= "```yaml\n";
-                $md .= Yaml::dump($meta1, 4, 2);
+                $md .= Yaml::dump($meta1, self::YAML_INLINE, self::YAML_INDENT);
                 $md .= "```\n\n";
             }
 
@@ -278,7 +281,7 @@ class ConvertCommandHelper
             }
             if (!empty($meta2)) {
                 $md .= "```yaml\n";
-                $md .= Yaml::dump($meta2, 4, 2);
+                $md .= Yaml::dump($meta2, self::YAML_INLINE, self::YAML_INDENT);
                 $md .= "```\n\n";
             }
 
@@ -320,7 +323,7 @@ class ConvertCommandHelper
                     $md .= "  - thumbnail: ![{$name}]({$localPath})\n";
                     if (isset($mediaIndex[$s3Path]) && !empty($mediaIndex[$s3Path]['url_signed'])) {
                         $expires = $mediaIndex[$s3Path]['expires_at'] ?? null;
-                        $expiresNote = $expires !== null ? " (Expires: " . date('Y-m-d H:i', $expires) . ")" : '';
+                        $expiresNote = $expires !== null ? " (Expires: ".date('Y-m-d H:i', $expires).")" : '';
                         $md .= "  - signed: medias/index.json → `{$s3Path}`{$expiresNote}\n";
                     }
                 }
@@ -336,8 +339,7 @@ class ConvertCommandHelper
                 $chars = $att['num_characters'] ?? null;
                 $s3Key = $att['s3_key'] ?? '';
                 $snippet = $att['snippet'] ?? '';
-                $snippetShort = mb_strlen($snippet) > 240 ? mb_substr($snippet, 0, 240) . '...' : $snippet;
-
+                $snippetShort = mb_strlen($snippet) > 240 ? mb_substr($snippet, 0, 240).'...' : $snippet;
 
 
                 if ($s3Key !== '') {
@@ -386,7 +388,7 @@ class ConvertCommandHelper
         $url = $s['url'] ?? '';
         if ($url !== '') {
             if (!empty($s['is_attachment']) && $this->isKeepDomain($url)) {
-                $out['url'] = '../../medias/' . $this->s3KeyFromUrl($url);
+                $out['url'] = '../../medias/'.$this->s3KeyFromUrl($url);
                 // Skip domain for local files — S3 hostname is not useful
             } else {
                 $out['url'] = $url;
@@ -412,6 +414,7 @@ class ConvertCommandHelper
         if ($numChars !== null) {
             $out['num_characters'] = $numChars;
         }
+
         return $out;
     }
 
@@ -436,9 +439,9 @@ class ConvertCommandHelper
                     $price = $item['price'] !== null ? number_format($item['price'], 2) : '-';
                     $change = $item['change'] !== null ? number_format($item['change'], 2) : '-';
                     $changePct = $item['changePercent'] !== null ? number_format(
-                        $item['changePercent'],
-                        2
-                    ) . '%' : '-';
+                            $item['changePercent'],
+                            2
+                        ).'%' : '-';
                     $mktCap = $item['marketCap'] !== null ? $this->formatLargeNumber($item['marketCap']) : '-';
                     $exchange = $item['exchange'] ?? '';
                     $md .= "| {$symbol} | {$name} | {$price} | {$change} | {$changePct} | {$mktCap} | {$exchange} |\n";
@@ -447,7 +450,7 @@ class ConvertCommandHelper
             } else {
                 $md .= "## {$type}\n";
                 foreach ($items as $item) {
-                    $md .= "- " . json_encode($item, JSON_UNESCAPED_UNICODE) . "\n";
+                    $md .= "- ".json_encode($item, JSON_UNESCAPED_UNICODE)."\n";
                 }
                 $md .= "\n";
             }
@@ -461,13 +464,13 @@ class ConvertCommandHelper
     private function formatLargeNumber(float|int $num): string
     {
         if ($num >= 1_000_000_000) {
-            return round($num / 1_000_000_000, 2) . 'B';
+            return round($num / 1_000_000_000, 2).'B';
         }
         if ($num >= 1_000_000) {
-            return round($num / 1_000_000, 2) . 'M';
+            return round($num / 1_000_000, 2).'M';
         }
         if ($num >= 1_000) {
-            return round($num / 1_000, 2) . 'K';
+            return round($num / 1_000, 2).'K';
         }
 
         return number_format($num, 2);
@@ -485,7 +488,7 @@ class ConvertCommandHelper
             throw new \RuntimeException(sprintf('Directory "%s" was not created', $dir));
         }
 
-        $tmpFile = $filePath . '.tmp.' . getmypid();
+        $tmpFile = $filePath.'.tmp.'.getmypid();
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         file_put_contents($tmpFile, $json);
         rename($tmpFile, $filePath);
